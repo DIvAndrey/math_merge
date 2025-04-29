@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Merge</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #4f46e5;
+            --accent: #10b981;
+            --background: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f0f4ff;
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+        }
+
+        .game-container {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 2rem;
+            margin: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 90%;
+        }
+
+        #target,
+        #score {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 1rem 0;
+            color: var(--primary);
+        }
+
+        #cards {
+            display: grid;
+            gap: 1rem;
+            margin: 2rem 0;
+            transform: translateZ(0);
+            grid-template-columns: repeat(auto-fit, minmax(80px, 80px));
+            justify-content: center;
+        }
+
+        .game-card {
+            background: var(--card-bg);
+            border: 2px solid var(--primary);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            color: var(--primary);
+            will-change: transform;
+            backface-visibility: hidden;
+            width: 80px;
+            height: 80px;
+            aspect-ratio: unset;
+        }
+
+        .game-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--secondary);
+            transform: scale(1.05) translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-new {
+            animation: cardAppear 0.3s ease;
+        }
+
+        @keyframes cardAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        #operations,
+        #controls {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .operation-btn,
+        .control-btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            border: none;
+            font-weight: 600;
+        }
+
+        .operation-btn {
+            background: var(--primary);
+            color: white;
+        }
+
+        .operation-btn:hover {
+            background: var(--secondary);
+            transform: translateY(-1px);
+        }
+
+        .control-btn {
+            background: var(--accent);
+            color: white;
+        }
+
+        .control-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .operation-btn:disabled {
+            background: #94a3b8;
+            transform: none;
+            cursor: not-allowed;
+        }
+
+        .message {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            z-index: 1000;
+            font-size: 1rem;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            0% {
+                transform: translate(-50%, -100%);
+                opacity: 0;
+            }
+
+            100% {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        .error-message {
+            background: var(--error);
+            color: white;
+        }
+
+        .success-message {
+            background: var(--success);
+            color: white;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 999;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="overlay"></div>
+    <div class="game-container">
+        <div id="target">Target: </div>
+        <div id="score">Score: 0</div>
+        <div id="message" class="message"></div>
+        <div id="cards"></div>
+        <div id="operations">
+            <button class="operation-btn" id="op-+">+ Add</button>
+            <button class="operation-btn" id="op--">- Subtract</button>
+            <button class="operation-btn" id="op-×">× Multiply</button>
+            <button class="operation-btn" id="op-÷">÷ Divide</button>
+        </div>
+        <div id="controls">
+            <button class="control-btn" id="undo">↩ Undo</button>
+            <button class="control-btn" id="reset">🔄 Reset (-1)</button>
+        </div>
+    </div>
+
+    <script>
+        const GAME_CONFIG = {
+            INITIAL_CARDS: 8,
+            TARGET_RANGE_MAX: 60,
+            MIN_TARGET: 10,
+            MAX_VALUE: 9999,
+            MIN_VALUE: 0,
+            POINTS_PER_SOURCE: 1,
+            MAX_INITIAL_CARD_VALUE: 15,
+        };
+
+        let gameState = [];
+        let selected = new Set();
+        let undoStack = [];
+        let score = 0;
+        let target = 0;
+
+        const elements = {
+            cardsContainer: document.getElementById('cards'),
+            targetDisplay: document.getElementById('target'),
+            scoreDisplay: document.getElementById('score'),
+            message: document.getElementById('message'),
+            overlay: document.querySelector('.overlay')
+        };
+
+        document.addEventListener('DOMContentLoaded', startGame);
+
+        function startGame() {
+            addEventListeners();
+            initializeGameState();
+        }
+
+        function addEventListeners() {
+            elements.cardsContainer.addEventListener('click', onCardClick);
+            document.getElementById('undo').addEventListener('click', undoMove);
+            document.getElementById('reset').addEventListener('click', resetGame);
+
+            ['+', '-', '×', '÷'].forEach(op =>
+                document.getElementById(`op-${op}`).addEventListener('click', () => handleOperation(op))
+            );
+        }
+
+        function initializeGameState() {
+            gameState = Array.from({ length: GAME_CONFIG.INITIAL_CARDS }, createCard);
+            generateNewTarget();
+            updateUI();
+        }
+
+        function createCardWithValue(val) {
+            return {
+                value: val,
+                sources: [val],
+                new: true
+            };
+        }
+
+        function createCard() {
+            return createCardWithValue(generateCardValue());
+        }
+
+        function generateCardValue() {
+            return Math.floor(Math.random() * (GAME_CONFIG.MAX_INITIAL_CARD_VALUE + 1));
+        }
+
+        function onCardClick(e) {
+            if (!e.target.classList.contains('game-card')) return;
+
+            const index = parseInt(e.target.dataset.index);
+
+            if (selected.has(index)) {
+                selected.delete(index);
+            } else {
+                if (selected.size < 2) {
+                    selected.add(index);
+                } else {
+                    selected.clear();
+                    selected.add(index);
+                }
+            }
+
+            updateUI();
+        }
+
+        function generateNewTarget() {
+            const cardValues = gameState.map(c => c.value);
+
+            const allTwoCardCombos = gameState.flatMap((cardA, i) =>
+                gameState.slice(i + 1).map(cardB => [cardA.value, cardB.value])
+            );
+
+            const validOperations = allTwoCardCombos.flatMap(([a, b]) => {
+                return [
+                    a + b,
+                    Math.abs(a - b),
+                    a * b,
+                    b !== 0 && a % b === 0 ? a / b : NaN,
+                    a !== 0 && b % a === 0 ? b / a : NaN
+                ].filter(result =>
+                    Number.isInteger(result) &&
+                    result > 0 &&
+                    result <= GAME_CONFIG.TARGET_RANGE_MAX &&
+                    !cardValues.includes(result)
+                );
+            });
+
+            target = validOperations.length
+                ? validOperations[Math.floor(Math.random() * validOperations.length)]
+                : Math.max(GAME_CONFIG.MIN_TARGET, ...cardValues.filter(n => n > 0), 1) + 5;
+        }
+
+        function handleOperation(operator) {
+            if (selected.size !== 2) return;
+
+            const [indexA, indexB] = [...selected].sort((x, y) => x - y);
+            var { value: first, sources: sourcesA } = gameState[indexA];
+            var { value: second, sources: sourcesB } = gameState[indexB];
+
+            if (first < second) {
+                [first, second] = [second, first];
+            }
+
+            let result;
+            switch (operator) {
+                case '+': result = first + second; break;
+                case '-': result = first - second; break;
+                case '×': result = first * second; break;
+                case '÷':
+                    if (first === 0 && second === 0) return showMessage('Cannot divide zero by zero', false);
+                    result = second === 0 ? 0 : first / second;
+                    if (!Number.isInteger(result)) return showMessage('Division not exact', false);
+                    break;
+            }
+
+            if (result < GAME_CONFIG.MIN_VALUE || result > GAME_CONFIG.MAX_VALUE) return;
+
+            saveCurrentState();
+
+            const combinedCard = {
+                value: result,
+                sources: [...sourcesA, ...sourcesB],
+                new: true
+            };
+
+            mergeCards(indexA, indexB, combinedCard);
+            selected.clear();
+
+            if (result === target) {
+                const gainedPoints = combinedCard.sources.length * GAME_CONFIG.POINTS_PER_SOURCE;
+                score += gainedPoints;
+                showMessage(`+${gainedPoints} Points!`, true);
+                handleSuccessfulTargetMatch();
+            }
+
+            updateUI();
+        }
+
+        function saveCurrentState() {
+            undoStack.push({
+                state: gameState.map(card => ({ ...card })),
+                target,
+                score
+            });
+        }
+
+        function mergeCards(indexA, indexB, newCard) {
+            gameState = [
+                ...gameState.slice(0, indexA),
+                newCard,
+                ...gameState.slice(indexA + 1, indexB),
+                ...gameState.slice(indexB + 1)
+            ];
+        }
+
+        function handleSuccessfulTargetMatch() {
+            undoStack = [];
+            const targetCardIndex = gameState.findIndex(c => c.value === target);
+            gameState.splice(targetCardIndex, 1);
+
+            gameState = [].concat.apply([], gameState.map(card => {
+                if (card.sources.length > 1) {
+                    return card.sources.map(val => createCardWithValue(val));
+                } else {
+                    return [card];
+                }
+            }));
+
+            while (gameState.length < GAME_CONFIG.INITIAL_CARDS) {
+                const insertAt = Math.floor(Math.random() * (gameState.length + 1));
+                gameState.splice(insertAt, 0, createCard());
+            }
+            generateNewTarget();
+        }
+
+        function undoMove() {
+            if (!undoStack.length) return;
+            const previous = undoStack.pop();
+            gameState = previous.state;
+            target = previous.target;
+            score = previous.score;
+            selected.clear();
+            updateUI();
+        }
+
+        function resetGame() {
+            saveCurrentState();
+            score = Math.max(0, score - 1);
+            showMessage('Resetting cards! -1 point', false);
+            gameState = Array.from({ length: GAME_CONFIG.INITIAL_CARDS }, createCard);
+            selected.clear();
+            generateNewTarget();
+            updateUI();
+        }
+
+        function showMessage(message, isSuccess) {
+            elements.message.textContent = message;
+            elements.message.className = `message ${isSuccess ? 'success-message' : 'error-message'}`;
+            elements.message.style.display = 'block';
+            elements.overlay.style.display = 'block';
+            setTimeout(() => {
+                elements.message.style.display = 'none';
+                elements.overlay.style.display = 'none';
+            }, 600);
+        }
+
+        function updateUI() {
+            gameState.sort((a, b) => a.value - b.value);
+
+            const fragment = document.createDocumentFragment();
+
+            gameState.forEach((card, index) => {
+                const div = document.createElement('div');
+                div.className = `game-card ${selected.has(index) ? 'card-selected' : ''} ${card.new ? 'card-new' : ''}`;
+                div.textContent = card.value;
+                div.dataset.index = index;
+                fragment.appendChild(div);
+            });
+
+            elements.cardsContainer.innerHTML = '';
+            elements.cardsContainer.appendChild(fragment);
+
+            gameState.forEach(card => card.new = false);
+            document.querySelectorAll('.operation-btn').forEach(btn =>
+                btn.disabled = selected.size !== 2
+            );
+
+            elements.targetDisplay.textContent = `Target: ${target}`;
+            elements.scoreDisplay.textContent = `Score: ${score}`;
+        }
+    </script>
+</body>
+
+</html>
