@@ -145,6 +145,11 @@
             transform: translateY(-1px);
         }
 
+        #reset {
+            background: #ef4444;
+            color: white;
+        }
+
         .operation-btn:disabled {
             background: #94a3b8;
             transform: none;
@@ -193,25 +198,56 @@
             display: none;
             z-index: 999;
         }
+
+        .language-switcher {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 100;
+        }
+
+        .language-btn {
+            background: var(--card-bg);
+            color: var(--text);
+            border: 1px solid var(--primary);
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .language-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .language-btn.active {
+            background: var(--primary);
+            color: white;
+        }
     </style>
 </head>
 
 <body>
+    <div class="language-switcher">
+        <button id="lang-btn" class="language-btn"></button>
+    </div>
     <div class="overlay"></div>
     <div class="game-container">
-        <div id="target">Target: </div>
-        <div id="score">Score: 0</div>
+        <div id="target"></div>
+        <div id="score"></div>
         <div id="message" class="message"></div>
         <div id="cards"></div>
         <div id="operations">
-            <button class="operation-btn" id="op-+">+ Add</button>
-            <button class="operation-btn" id="op--">- Subtract</button>
-            <button class="operation-btn" id="op-×">× Multiply</button>
-            <button class="operation-btn" id="op-÷">÷ Divide</button>
+            <button class="operation-btn" id="op-+"></button>
+            <button class="operation-btn" id="op--"></button>
+            <button class="operation-btn" id="op-×"></button>
+            <button class="operation-btn" id="op-÷"></button>
         </div>
         <div id="controls">
-            <button class="control-btn" id="undo">↩ Undo</button>
-            <button class="control-btn" id="reset">🔄 Reset (-1)</button>
+            <button class="control-btn" id="undo"></button>
+            <button class="control-btn" id="reset"></button>
         </div>
     </div>
 
@@ -226,6 +262,41 @@
             MAX_INITIAL_CARD_VALUE: 15,
         };
 
+        const translations = {
+            en: {
+                title: "Math Merge",
+                targetLabel: "Target: ",
+                scoreLabel: "Score: ",
+                add: "+ Add",
+                subtract: "- Subtract",
+                multiply: "× Multiply",
+                divide: "÷ Divide",
+                undo: "↩ Undo",
+                reset: "🔄 Reset (-1)",
+                messageSuccess: "+{points} points!",
+                messageReset: "Resetting cards! -1 point",
+                messageError: "Cannot divide zero by zero!",
+                messageError2: "Division not exact!"
+            },
+            ru: {
+                title: "Math Merge",
+                targetLabel: "Получите число: ",
+                scoreLabel: "Очков: ",
+                add: "+ Сложить",
+                subtract: "- Вычесть",
+                multiply: "× Умножить",
+                divide: "÷ Поделить",
+                undo: "↩ Отмена",
+                reset: "🔄 Новые карты (-1)",
+                messageSuccess: "+{points} очков!",
+                messageReset: "Сброс карт! -1 очко",
+                messageError: "Нельзя делить ноль на ноль!",
+                messageError2: "Не делится нацело!"
+            }
+        };
+
+        let currentLanguage = 'en';
+        let translation = translations[currentLanguage];
         let gameState = [];
         let selected = new Set();
         let undoStack = [];
@@ -237,14 +308,49 @@
             targetDisplay: document.getElementById('target'),
             scoreDisplay: document.getElementById('score'),
             message: document.getElementById('message'),
-            overlay: document.querySelector('.overlay')
+            overlay: document.querySelector('.overlay'),
+            langBtn: document.getElementById('lang-btn')
         };
 
         document.addEventListener('DOMContentLoaded', startGame);
 
         function startGame() {
+            setLanguageFromBrowser();
             addEventListeners();
             initializeGameState();
+        }
+
+        function setLanguageFromBrowser() {
+            const userLang = navigator.language || navigator.userLanguage;
+            if (userLang.includes('ru')) {
+                currentLanguage = 'ru';
+            }
+            updateLanguage();
+        }
+
+        function updateLanguage() {
+            translation = translations[currentLanguage];
+            document.title = translation.title;
+            elements.targetDisplay.textContent = translation.targetLabel;
+            elements.scoreDisplay.textContent = translation.scoreLabel + score;
+
+            document.getElementById('op-+').textContent = translation.add;
+            document.getElementById('op--').textContent = translation.subtract;
+            document.getElementById('op-×').textContent = translation.multiply;
+            document.getElementById('op-÷').textContent = translation.divide;
+
+            document.getElementById('undo').textContent = translation.undo;
+            document.getElementById('reset').textContent = translation.reset;
+
+            elements.langBtn.textContent = currentLanguage === 'en' ? 'RU' : 'EN';
+            elements.langBtn.dataset.lang = currentLanguage === 'en' ? 'ru' : 'en';
+
+            updateUI();
+        }
+
+        function switchLanguage() {
+            currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
+            updateLanguage();
         }
 
         function addEventListeners() {
@@ -255,6 +361,8 @@
             ['+', '-', '×', '÷'].forEach(op =>
                 document.getElementById(`op-${op}`).addEventListener('click', () => handleOperation(op))
             );
+
+            elements.langBtn.addEventListener('click', switchLanguage);
         }
 
         function initializeGameState() {
@@ -329,8 +437,8 @@
             if (selected.size !== 2) return;
 
             const [indexA, indexB] = [...selected].sort((x, y) => x - y);
-            var { value: first, sources: sourcesA } = gameState[indexA];
-            var { value: second, sources: sourcesB } = gameState[indexB];
+            let { value: first, sources: sourcesA } = gameState[indexA];
+            let { value: second, sources: sourcesB } = gameState[indexB];
 
             if (first < second) {
                 [first, second] = [second, first];
@@ -342,9 +450,9 @@
                 case '-': result = first - second; break;
                 case '×': result = first * second; break;
                 case '÷':
-                    if (first === 0 && second === 0) return showMessage('Cannot divide zero by zero', false);
+                    if (first === 0 && second === 0) return showMessage(translation.messageError, false);
                     result = second === 0 ? 0 : first / second;
-                    if (!Number.isInteger(result)) return showMessage('Division not exact', false);
+                    if (!Number.isInteger(result)) return showMessage(translation.messageError2, false);
                     break;
             }
 
@@ -364,7 +472,7 @@
             if (result === target) {
                 const gainedPoints = combinedCard.sources.length * GAME_CONFIG.POINTS_PER_SOURCE;
                 score += gainedPoints;
-                showMessage(`+${gainedPoints} Points!`, true);
+                showMessage(translation.messageSuccess.replace('{points}', gainedPoints), true);
                 handleSuccessfulTargetMatch();
             }
 
@@ -421,7 +529,7 @@
         function resetGame() {
             saveCurrentState();
             score = Math.max(0, score - 1);
-            showMessage('Resetting cards! -1 point', false);
+            showMessage(translation.messageReset, false);
             gameState = Array.from({ length: GAME_CONFIG.INITIAL_CARDS }, createCard);
             selected.clear();
             generateNewTarget();
@@ -460,8 +568,8 @@
                 btn.disabled = selected.size !== 2
             );
 
-            elements.targetDisplay.textContent = `Target: ${target}`;
-            elements.scoreDisplay.textContent = `Score: ${score}`;
+            elements.targetDisplay.textContent = `${translation.targetLabel}${target}`;
+            elements.scoreDisplay.textContent = `${translation.scoreLabel}${score}`;
         }
     </script>
 </body>
