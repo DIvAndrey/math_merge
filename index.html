@@ -146,7 +146,7 @@
         }
 
         #reset {
-            background: #ef4444;
+            background: var(--error);
             color: white;
         }
 
@@ -256,10 +256,10 @@
             INITIAL_CARDS: 8,
             TARGET_RANGE_MAX: 60,
             MIN_TARGET: 10,
-            MAX_VALUE: 9999,
+            MAX_VALUE: 99999,
             MIN_VALUE: 0,
             POINTS_PER_SOURCE: 1,
-            MAX_INITIAL_CARD_VALUE: 15,
+            MAX_INITIAL_CARD_VALUE: 18,
         };
 
         const translations = {
@@ -275,8 +275,10 @@
                 reset: "🔄 Reset (-1)",
                 messageSuccess: "+{points} points!",
                 messageReset: "Resetting cards! -1 point",
-                messageError: "Cannot divide zero by zero!",
-                messageError2: "Division not exact!"
+                divisionByZero: "Cannot divide zero by zero",
+                divisionNotExact: "Division not exact",
+                valueTooLow: "The value must be positive",
+                valueTooHigh: `The value must not exceed ${GAME_CONFIG.MAX_VALUE}`
             },
             ru: {
                 title: "Math Merge",
@@ -290,8 +292,10 @@
                 reset: "🔄 Новые карты (-1)",
                 messageSuccess: "+{points} очков!",
                 messageReset: "Сброс карт! -1 очко",
-                messageError: "Нельзя делить ноль на ноль!",
-                messageError2: "Не делится нацело!"
+                divisionByZero: "Нельзя делить ноль на ноль",
+                divisionNotExact: "Не делится нацело",
+                valueTooLow: "Число должно быть положительным",
+                valueTooHigh: `Число не должно превышать ${GAME_CONFIG.MAX_VALUE}`
             }
         };
 
@@ -371,11 +375,11 @@
             updateUI();
         }
 
-        function createCardWithValue(val) {
+        function createCardWithValue(val, is_new = true) {
             return {
                 value: val,
                 sources: [val],
-                new: true
+                new: is_new
             };
         }
 
@@ -384,7 +388,7 @@
         }
 
         function generateCardValue() {
-            return Math.floor(Math.random() * (GAME_CONFIG.MAX_INITIAL_CARD_VALUE + 1));
+            return Math.ceil(Math.random() * GAME_CONFIG.MAX_INITIAL_CARD_VALUE);
         }
 
         function onCardClick(e) {
@@ -450,13 +454,20 @@
                 case '-': result = first - second; break;
                 case '×': result = first * second; break;
                 case '÷':
-                    if (first === 0 && second === 0) return showMessage(translation.messageError, false);
+                    if (first === 0 && second === 0) return showMessage(translation.divisionByZero, false);
                     result = second === 0 ? 0 : first / second;
-                    if (!Number.isInteger(result)) return showMessage(translation.messageError2, false);
+                    if (!Number.isInteger(result)) return showMessage(translation.divisionNotExact, false);
                     break;
             }
 
-            if (result < GAME_CONFIG.MIN_VALUE || result > GAME_CONFIG.MAX_VALUE) return;
+            if (result < GAME_CONFIG.MIN_VALUE) {
+                showMessage(translation.valueTooLow, false);
+                return;
+            }
+            if (result > GAME_CONFIG.MAX_VALUE) {
+                showMessage(translation.valueTooHigh, false);
+                return;
+            }
 
             saveCurrentState();
 
@@ -503,7 +514,7 @@
 
             gameState = [].concat.apply([], gameState.map(card => {
                 if (card.sources.length > 1) {
-                    return card.sources.map(val => createCardWithValue(val));
+                    return card.sources.map(val => createCardWithValue(val, false));
                 } else {
                     return [card];
                 }
@@ -544,7 +555,7 @@
             setTimeout(() => {
                 elements.message.style.display = 'none';
                 elements.overlay.style.display = 'none';
-            }, 600);
+            }, isSuccess ? 700 : 1000);
         }
 
         function updateUI() {
