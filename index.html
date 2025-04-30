@@ -254,8 +254,7 @@
     <script>
         const GAME_CONFIG = {
             INITIAL_CARDS: 8,
-            TARGET_RANGE_MAX: 60,
-            MIN_TARGET: 10,
+            MAX_TARGET: 70,
             MAX_VALUE: 99999,
             MIN_VALUE: 0,
             POINTS_PER_SOURCE: 1,
@@ -411,30 +410,7 @@
         }
 
         function generateNewTarget() {
-            const cardValues = gameState.map(c => c.value);
-
-            const allTwoCardCombos = gameState.flatMap((cardA, i) =>
-                gameState.slice(i + 1).map(cardB => [cardA.value, cardB.value])
-            );
-
-            const validOperations = allTwoCardCombos.flatMap(([a, b]) => {
-                return [
-                    a + b,
-                    Math.abs(a - b),
-                    a * b,
-                    b !== 0 && a % b === 0 ? a / b : NaN,
-                    a !== 0 && b % a === 0 ? b / a : NaN
-                ].filter(result =>
-                    Number.isInteger(result) &&
-                    result > 0 &&
-                    result <= GAME_CONFIG.TARGET_RANGE_MAX &&
-                    !cardValues.includes(result)
-                );
-            });
-
-            target = validOperations.length
-                ? validOperations[Math.floor(Math.random() * validOperations.length)]
-                : Math.max(GAME_CONFIG.MIN_TARGET, ...cardValues.filter(n => n > 0), 1) + 5;
+            target = Math.ceil(Math.random() * GAME_CONFIG.MAX_TARGET);
         }
 
         function handleOperation(operator) {
