@@ -410,7 +410,12 @@
         }
 
         function generateNewTarget() {
-            target = Math.ceil(Math.random() * GAME_CONFIG.MAX_TARGET);
+            while (true) {
+                target = Math.ceil(Math.random() * GAME_CONFIG.MAX_TARGET);
+                if (!gameState.some(card => card.value === target)) {
+                    break;
+                }
+            }
         }
 
         function handleOperation(operator) {
